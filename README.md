@@ -36,15 +36,16 @@ npm start
 ```
 Open up a browser (better Chrome) and navigate to http://localhost:1881
 
-<!-- ## Usage
+## Usage
 First define your Device and bind the Variable or Signals
-![fuxa device](/screenshot/fuxa-device.gif)
+![fuxa device](/screenshot/fuxa-add-device.gif)
 
-Then design your HMI pages with the SVG editor
-![fuxa hmi](/screenshot/fuxa-hmi.gif)
+Please refresh the page once after adding
+<!-- Then design your HMI pages with the SVG editor
+![fuxa hmi](/screenshot/fuxa-hmi.gif) -->
 
 Now you can test by changing the values to PLC or manually with the testbench
-![fuxa test](/screenshot/fuxa-test.gif) -->
+![fuxa test](/screenshot/fuxa-select-device.gif.gif)
 
 ## To Debug (Full Stack)
 Install and start to serve the frontend

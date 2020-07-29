@@ -16,8 +16,8 @@ var apiDevice;
 var settings
 var logger;
 var io;
-let name = '';
-let obj = [];
+let name = [];
+let obj = {};
 function init(_io, _api, _settings, log) {
     io = _io;
     settings = _settings;
@@ -55,62 +55,70 @@ function init(_io, _api, _settings, log) {
             if (keys.length <= 0 ) {
                 return false;
             }
+            name = [];
             keys.map(item=>{
                 if (devices[item].type === 'OPCUA') {
-                    name = devices[item].name
+                    // name = devices[item].name
+                    name.push(devices[item].name)
                 }
             })
-            prjstore.getSection('devicesSecurity', name).then(results=>{
-                if (results.length > 0) {
-                    if (results[0].value === 'null') {
-                        return false;
-                    }
-                    const accesskey = JSON.parse(results[0].value).accesskey;
-                    const sn = JSON.parse(results[0].value).sn;
-                    const ws = new WebSocket('ws://cloud.thingsroot.com:17654')
-                        ws.onopen = function (evt) {
-                            console.log("Connection open ...");
-                            ws.send(JSON.stringify({
-                                id: 1,
-                                code: 'login',
-                                data: accesskey
-                            }));
-                        };
-                        ws.onmessage =  (event) => {
-                            const data = JSON.parse(event.data)
-                            if (data.code === 'login') {
-                                ws.send(JSON.stringify({
-                                    id: 2,
-                                    code: 'device_data',
-                                    data: sn
-                                }))
+            if (name && name.length > 0) {
+                name.map(item=>{
+                    prjstore.getSection('devicesSecurity', item).then(results=>{
+                        if (results.length > 0) {
+                            if (results[0].value === 'null') {
+                                return false;
                             }
-                            if (data.code === 'device_data') {
-                                const datas = data.data;
-                                const dataKey = Object.keys(datas);
-                                if (dataKey.length > 0) {
-                                    obj = [];
-                                    dataKey.map(item => {
-                                        obj.push({
-                                                name: item,
-                                                id: item,
-                                                address: item,
-                                                type: 'Double',
-                                                value: datas[item]['PV']
-                                            })
-                                    })
-                                }
-                                setTimeout(() => {
+                            const accesskey = JSON.parse(results[0].value).accesskey;
+                            const sn = JSON.parse(results[0].value).sn;
+                            const ws = new WebSocket('ws://cloud.thingsroot.com:17654')
+                                ws.onopen = function (evt) {
+                                    // console.log("Connection open ...");
                                     ws.send(JSON.stringify({
-                                        id: 2,
-                                        code: 'device_data',
-                                        data: sn
-                                    }))
-                                }, 3000);
+                                        id: 1,
+                                        code: 'login',
+                                        data: accesskey
+                                    }));
+                                };
+                                
+                                ws.onmessage =  (event) => {
+                                    const data = JSON.parse(event.data)
+                                    if (data.code === 'login') {
+                                        ws.send(JSON.stringify({
+                                            id: 2,
+                                            code: 'device_data',
+                                            data: sn
+                                        }))
+                                    }
+                                    if (data.code === 'device_data') {
+                                        const datas = data.data;
+                                        const dataKey = Object.keys(datas);
+                                        if (dataKey.length > 0) {
+                                            obj[item] = [];
+                                            dataKey.map(items => {
+                                                obj[item].push({
+                                                        name: items,
+                                                        id: items,
+                                                        address: items,
+                                                        type: 'Double',
+                                                        value: datas[items]['PV']
+                                                    })
+                                            })
+                                        }
+                                        setTimeout(() => {
+                                            ws.send(JSON.stringify({
+                                                id: 2,
+                                                code: 'device_data',
+                                                data: sn
+                                            }))
+                                        }, 3000);
+                                    }
+                                }
                             }
-                        }
-                    }
-            })
+                    })
+                })
+            }
+            
         }, 1000);
         
         // client ask device status
@@ -326,11 +334,20 @@ function updateDevice(event) {
  */
 function updateDeviceValues(event) {
     try {
-        io.emit('device-values', {
-            id: event.id !== name ? name : event.id,
-            values: obj
-        })
+        if (name.length > 0) {
+            name.map(item => {
+                io.emit('device-values', {
+                    id: event.id !== item ? item : event.id,
+                    values: obj[item]
+                })
+            })
+        }
+        // io.emit('device-values', {
+        //     id: event.id !== name ? name : event.id,
+        //     values: obj
+        // })
     } catch (err) {
+        console.log(err, 'err')
     }
 }
 

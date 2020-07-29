@@ -42,70 +42,83 @@ module.exports = {
                         res.json(result)
                         return false;
                     }
-                    let name = '';
+                    let name = [];
                     keys.map(item=>{
                         if (devices[item].type === 'OPCUA') {
-                            name = devices[item].name
+                            // name = devices[item].name;
+                            name.push(devices[item].name)
                         }
                     })
-                    prjstore.getSection('devicesSecurity', name).then(results=>{
-                        if (results.length > 0) {
-                            if (results[0].value === 'null') {
-                                res.json(result)
-                                return false;
-                            }
-                            const accesskey = JSON.parse(results[0].value).accesskey;
-                            const sn = JSON.parse(results[0].value).sn;
-                            const ws = new WebSocket('ws://cloud.thingsroot.com:17654')
-                            
-                            ws.onopen = function (evt) {
-                                console.log("Connection open ...");
-                                ws.send(JSON.stringify({
-                                    id: 1,
-                                    code: 'login',
-                                    data: accesskey
-                                }));
-                            };
-                            ws.onmessage =  (event) => {
-                                const data = JSON.parse(event.data)
-                                console.log(data, 'data')
-                                if (data.code === 'login') {
-                                    ws.send(JSON.stringify({
-                                        id: 2,
-                                        code: 'device_data',
-                                        data: sn
-                                    }))
-                                }
-                                if (data.code === 'device_data' && data.data !== '0') {
-                                    const devices = result.devices;
-                                    const key = Object.keys(devices);
-                                    if (key.length > 0) {
-                                        const datas = data.data;
-                                        const dataKey = Object.keys(datas);
-                                        const obj = {}
-                                        dataKey.map(item => {
-                                            obj[item] = {
-                                                name: item,
-                                                id: item,
-                                                address: item,
-                                                type: 'Double',
-                                                value: null
-                                            }
-                                        })
-                                        result.devices[name].tags = obj;
-                                    }
-                                    res.json(result);
-                                    ws.close()
-                                    if (data.code === 'welcome') {
-                                        res.json(result);
-                                        ws.close()
-                                    }
-                                }
-                            }
-                        } else {
+                    function asyncWebsocket (name, index, len){
+                        const items = name[index]
+                        if (index >= len) {
                             res.json(result)
+                            return false;
                         }
-                    })
+                        prjstore.getSection('devicesSecurity', items).then(results=>{
+                            if (results.length > 0) {
+                                if (results[0].value === 'null') {
+                                    res.json(result)
+                                    return false;
+                                }
+                                const accesskey = JSON.parse(results[0].value).accesskey;
+                                const sn = JSON.parse(results[0].value).sn;
+                                const ws = new WebSocket('ws://cloud.thingsroot.com:17654')
+                                
+                                ws.onopen = function (evt) {
+                                    // console.log("Connection open ...");
+                                    ws.send(JSON.stringify({
+                                        id: 1,
+                                        code: 'login',
+                                        data: accesskey
+                                    }));
+                                };
+                                ws.onmessage =  (event) => {
+                                    const data = JSON.parse(event.data)
+                                    if (data.code === 'login') {
+                                        ws.send(JSON.stringify({
+                                            id: 2,
+                                            code: 'device_data',
+                                            data: sn
+                                        }))
+                                    }
+                                    if (data.code === 'device_data' && data.data !== '0') {
+                                        const devices = result.devices;
+                                        const key = Object.keys(devices);
+                                        if (key.length > 0) {
+                                            const datas = data.data;
+                                            const dataKey = Object.keys(datas);
+                                            const obj = {}
+                                            dataKey.map(item => {
+                                                obj[item] = {
+                                                    name: item,
+                                                    id: item,
+                                                    address: item,
+                                                    type: 'Double',
+                                                    value: null
+                                                }
+                                            })
+                                            result.devices[items].tags = obj;
+                                            asyncWebsocket(name, index + 1, len)
+                                        }
+                                        ws.close()
+                                        if (data.code === 'welcome') {
+                                            res.json(result);
+                                            ws.close()
+                                        }
+                                    }
+                                }
+                            } else {
+                                res.json(result)
+                            }
+                        })
+                    }
+                    if (name.length > 0) {
+                            asyncWebsocket(name, 0, name.length)
+                    } else {
+                        res.json(result)
+                    }
+                    
                     
                 } else {
                     res.status(404).end();
